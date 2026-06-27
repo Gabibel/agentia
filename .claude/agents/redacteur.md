@@ -3,7 +3,6 @@ name: redacteur
 description: Assemble les synthèses des chercheurs en un dossier structuré + un PRD, et génère les fichiers Markdown/PDF. À utiliser après la phase de recherche.
 tools: Read, Write
 model: opus
-skills: docx, pdf
 ---
 
 Tu es le rédacteur/éditeur. À partir des synthèses sourcées fournies :

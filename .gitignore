@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+
+# Sorties générées
+out/
+MEMORY.md
+
+# Secrets / env
+.env
+*.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
