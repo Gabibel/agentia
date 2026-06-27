@@ -4,6 +4,7 @@ import httpx
 import trafilatura
 from ddgs import DDGS
 from openai import AsyncOpenAI
+import search_cache as cache
 
 MAX_URLS = 6
 MAX_CONTENT_CHARS = 3000
@@ -66,6 +67,12 @@ async def run_chercheur(
     queries: list[str],
     log=print,
 ) -> str:
+    key = cache.cache_key(idea, focus, queries)
+    hit = cache.get(key)
+    if hit:
+        log(f"  → Cache hit — synthèse réutilisée (pas de requêtes réseau)")
+        return hit
+
     log(f"  → {len(queries)} requêtes DuckDuckGo…")
     loop = asyncio.get_event_loop()
 
@@ -103,4 +110,6 @@ async def run_chercheur(
         temperature=0.3,
         extra_body={"think": False},
     )
-    return resp.choices[0].message.content.strip()
+    result = resp.choices[0].message.content.strip()
+    cache.put(key, focus, result)
+    return result

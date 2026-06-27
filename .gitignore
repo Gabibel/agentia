@@ -8,6 +8,7 @@ __pycache__/
 # Sorties générées
 out/
 MEMORY.md
+cache.db
 
 # Secrets / env
 .env
