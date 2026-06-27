@@ -1,11 +1,14 @@
-"""Agent rédacteur : assemble dossier.md, génère dossier.pdf et prd.md."""
+"""Agent rédacteur : assemble dossier.md, génère dossier.pdf, dossier.docx et prd.md."""
 import datetime
 import os
+import re
 from pathlib import Path
 
 import io
 import markdown
 from xhtml2pdf import pisa
+from docx import Document
+from docx.shared import Pt, RGBColor
 from openai import AsyncOpenAI
 
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:14b")
@@ -90,8 +93,8 @@ async def run_redacteur(
     juridique: str,
     out_path: Path,
     log=print,
-) -> tuple[Path, Path, Path]:
-    """Assemble dossier.md + dossier.pdf + prd.md. Retourne les 3 chemins."""
+) -> tuple[Path, Path, Path, Path]:
+    """Assemble dossier.md + .pdf + .docx + prd.md. Retourne les 4 chemins."""
 
     # 1. Recommandations de stack (appel LLM rapide)
     log("  → Génération recommandations de stack…")
@@ -114,13 +117,18 @@ async def run_redacteur(
     _render_pdf(dossier_md, pdf_path)
     log("  → dossier.pdf généré")
 
-    # 4. prd.md
+    # 4. dossier.docx via python-docx
+    docx_path = out_path / "dossier.docx"
+    _render_docx(dossier_md, docx_path)
+    log("  → dossier.docx généré")
+
+    # 5. prd.md
     prd_path = out_path / "prd.md"
     prd_md = await _gen_prd(llm, model, idea, dossier_md)
     prd_path.write_text(prd_md, encoding="utf-8")
     log("  → prd.md écrit")
 
-    return md_path, pdf_path, prd_path
+    return md_path, pdf_path, docx_path, prd_path
 
 
 async def _gen_stack(llm, model, idea, skills, concurrents) -> str:
@@ -165,6 +173,43 @@ async def _gen_prd(llm, model, idea, dossier_md) -> str:
         extra_body={"think": False},
     )
     return resp.choices[0].message.content.strip()
+
+
+def _render_docx(md_text: str, out_path: Path) -> None:
+    doc = Document()
+    # Style de base
+    style = doc.styles["Normal"]
+    style.font.name = "Calibri"
+    style.font.size = Pt(11)
+
+    for line in md_text.splitlines():
+        stripped = line.rstrip()
+        if stripped.startswith("### "):
+            doc.add_heading(stripped[4:], level=3)
+        elif stripped.startswith("## "):
+            doc.add_heading(stripped[3:], level=2)
+        elif stripped.startswith("# "):
+            doc.add_heading(stripped[2:], level=1)
+        elif stripped.startswith("> "):
+            p = doc.add_paragraph(stripped[2:])
+            p.style = doc.styles["Quote"] if "Quote" in doc.styles else doc.styles["Normal"]
+            p.runs[0].italic = True
+        elif stripped.startswith("- ") or stripped.startswith("* "):
+            doc.add_paragraph(stripped[2:], style="List Bullet")
+        elif re.match(r"^\d+\. ", stripped):
+            doc.add_paragraph(re.sub(r"^\d+\. ", "", stripped), style="List Number")
+        elif stripped == "---":
+            doc.add_paragraph("─" * 60)
+        elif stripped == "":
+            doc.add_paragraph("")
+        else:
+            # Nettoyer le markdown inline (**bold**, *italic*, `code`)
+            clean = re.sub(r"\*\*(.+?)\*\*", r"\1", stripped)
+            clean = re.sub(r"\*(.+?)\*",     r"\1", clean)
+            clean = re.sub(r"`(.+?)`",        r"\1", clean)
+            doc.add_paragraph(clean)
+
+    doc.save(out_path)
 
 
 def _render_pdf(md_text: str, out_path: Path) -> None:

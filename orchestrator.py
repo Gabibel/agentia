@@ -121,7 +121,7 @@ async def run_pipeline(idea: str, log=print) -> dict:
     out_path.mkdir(parents=True, exist_ok=True)
 
     log("✍️  [Rédacteur] Assemblage dossier + PDF + PRD…")
-    md_path, pdf_path, prd_path = await run_redacteur(
+    md_path, pdf_path, docx_path, prd_path = await run_redacteur(
         _llm, OLLAMA_MODEL, idea,
         overview=overview,
         skills=sections["skills_connecteurs"],
@@ -146,7 +146,7 @@ async def run_pipeline(idea: str, log=print) -> dict:
             "\n\n---\nNote vérificateur (à corriger) :\n"
             + "\n".join(f"- {c}" for c in corrections)
         )
-        md_path, pdf_path, prd_path = await run_redacteur(
+        md_path, pdf_path, docx_path, prd_path = await run_redacteur(
             _llm, OLLAMA_MODEL, idea,
             overview=overview + correction_hint,
             skills=sections["skills_connecteurs"],
@@ -170,5 +170,5 @@ async def run_pipeline(idea: str, log=print) -> dict:
     log(f"  VERDICT : {verdict}")
     log(f"{'='*60}\n")
 
-    return {"md": md_path, "pdf": pdf_path, "prd": prd_path,
-            "verdict": verdict, "out_path": out_path}
+    return {"md": md_path, "pdf": pdf_path, "docx": docx_path,
+            "prd": prd_path, "verdict": verdict, "out_path": out_path}
